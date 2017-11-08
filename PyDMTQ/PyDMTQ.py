@@ -5,10 +5,7 @@ import random
 import sys
 import os
 import time
-from urlparse import urlparse
-from urllib import urlencode
-from Crypto.Hash import MD5
-import sha
+from Crypto.Hash import *
 
 class PyDMTQ(object):
     #This is MethodID/MethodName Table
@@ -35,7 +32,8 @@ class PyDMTQ(object):
                    48:"game.getPreviewPlayInfo",
                    42:"game.savePlayResult",
                    77:"game.getLineScoreRangeWithLevel",
-                   37:"shop.buyMultiProductByQPoint"
+                   37:"shop.buyMultiProductByQPoint",
+                   94:"game.getAdTicketRequest"
 
     }
     #Functions are named as MethodName.replace(".","_") for dynamic method dispatching
@@ -43,10 +41,10 @@ class PyDMTQ(object):
     app_secret='ODY0NmM0ZjBjZTI5ZTQ2NzFkMTVmOTE2YjU1YzY3MmY'
     def __init__(self, email=None, password=None,udid=None):
         #PMang Login
-        epoch=int(time.time())
+        epoch=str(time.time())
         HTTPHeaders = {"User-Agent": "PmangPlus SDK 1.8 170414 (iPhone OS,9.3.3,iPad5,3,Apple,(null),(null))",
                        "X-PmangPlus-Platform": 'iOS',
-                       'fp': self.SHA1(str(epoch)+PyDMTQ.app_secret),
+                       'fp': self.SHA1(str(epoch+PyDMTQ.app_secret).encode('utf-8')),
                        'locale': "en_US",
                        'ts': str(epoch),
                        'ver': '5'}
@@ -90,12 +88,12 @@ class PyDMTQ(object):
             self.nickname=foo['value']['member']['nickname']
             self.profileimageurl=foo['value']['member']['profile_img_url']
     def SHA1(self,String):
-        x=sha.new()
+        x=SHA.new()
         x.update(String)
         return x.hexdigest()
     def CalculateFp(self, PostData):
         h = MD5.new()
-        h.update(bytearray(str(self.secretkey + PostData)))
+        h.update(bytearray(str(self.secretkey + PostData), 'utf8'))
         return h.hexdigest()
     def APIPost(self,id,Params):
         HTTPBody=[
@@ -154,6 +152,11 @@ class PyDMTQ(object):
         Range is 20 in game
         '''
         return json.loads(self.APIPost(53,[SongId,Line,FromRank,Range]).content)[0]["result"]
+    def game_getAdTicketRequest(self,SongId):
+        '''
+        Fake a AdTicketRequest
+        '''
+        return json.loads(self.APIPost(94,[self.guid,SongId]).content)[0]["result"]
     def game_getSongUrl(self,SongID,ClientOS,Version):
         '''
             ClientOS: IOS or ANDROID
@@ -167,46 +170,3 @@ class PyDMTQ(object):
         ProductIDs: A list of ProductIDs
         '''
         return json.loads(self.APIPost(37,[self.guid,json.dumps({"product_id":ProductIDs})]).content)[0]["result"]
-    def saveAllPatterns(self,RootPath=os.path.join(os.path.dirname(os.path.abspath(__file__)),"Patterns")):
-        if not os.path.exists(RootPath):
-            os.makedirs(RootPath)
-        for item in self.game_getSongList()["songs"]:
-            SongID=item["song_id"]
-            for P in item["song_patterns"]:
-                PID=P["pattern_id"]
-                print ("Downloading PatternID:"+str(PID))
-                ContainerPath=os.path.join(RootPath,str(SongID))
-                if not os.path.exists(ContainerPath):
-                    os.makedirs(ContainerPath)
-                PFPath=os.path.join(ContainerPath,str(PID))
-                PEMFPath=os.path.join(ContainerPath,str(PID)+"_EARPHONE")
-                if os.path.exists(PFPath)==False:
-                    PF=open(PFPath,"w")
-                    Pattern=requests.get(self.game_getPatternUrl(PID,EarphoneMode=False)).content
-                    PF.write(Pattern)
-                    PF.close()
-                if os.path.exists(PEMFPath)==False:
-                    PatternEM=requests.get(self.game_getPatternUrl(PID)).content
-                    PEMF=open(PEMFPath,"w")
-                    PEMF.write(PatternEM)
-                    PEMF.close()
-    def saveAllSongData(self,RootPath=os.path.dirname(os.path.abspath(__file__))):
-        if not os.path.exists(RootPath):
-            os.makedirs(RootPath)
-        SongInfoDict=dict()
-        for SongInfo in self.game_getSongList()["songs"]:
-            SongID=SongInfo["song_id"]
-            print ("Fetching SongURL of:"+str(SongID))
-            URLList=list()
-            URLList.extend(self.game_getSongUrl(SongID,"ANDROID","1.0.0")["pmang"])
-            URLList.extend(self.game_getSongUrl(SongID,"IOS","1.0.0")["pmang"])
-            for url in URLList:
-                SavePath=RootPath+urlparse(url).path
-                print ("Saving :"+url+" To:"+SavePath)
-                if os.path.exists(SavePath)==False:
-                    if not os.path.exists(os.path.dirname(os.path.abspath(SavePath))):
-                        os.makedirs(os.path.dirname(os.path.abspath(SavePath)))
-                    Data=requests.get(url).content
-                    f=open(SavePath,"wb")
-                    f.write(Data)
-                    f.close
