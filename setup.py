@@ -10,7 +10,7 @@ def recursiveSearch(directory):
                  if name.endswith(".DS_Store")==False]
 setup(
     name='PyDMTQ',
-    version='0.0.2',
+    version='0.0.3',
     packages=find_packages(),
     url = "https://github.com/Naville/DMTQResearch",
     license='GPL',

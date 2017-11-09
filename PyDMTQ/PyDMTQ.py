@@ -5,7 +5,7 @@ import random
 import sys
 import os
 import time
-from Crypto.Hash import *
+from Crypto.Hash import SHA,MD5
 
 class PyDMTQ(object):
     #This is MethodID/MethodName Table
